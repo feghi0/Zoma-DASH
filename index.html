@@ -1,14 +1,583 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zoma DASH - Panel de Control de Analíticas de Negocio</title>
-    <meta name="description" content="Dashboard interactivo premium de métricas SaaS. Visualización de analíticas financieras y de usuario con gráficos dinámicos, simulador de proyecciones a 12 meses y descarga de reportes en PDF y CSV." />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zoma DASH - Panel de Control de Analíticas de Negocio</title>
+  <meta name="description" content="Dashboard interactivo premium de métricas SaaS. Visualización de analíticas financieras y de usuario con gráficos dinámicos, simulador de proyecciones a 12 meses y descarga de reportes en PDF y CSV." />
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+  
+  <!-- ApexCharts CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  
+  <!-- jsPDF & jsPDF-AutoTable CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf-autotable.min.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header Navbar -->
+    <header class="dashboard-header">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <i data-lucide="bar-chart-2"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">Zoma DASH</h1>
+          <span style="font-size: 0.7rem; color: var(--text-secondary);">NÚCLEO DE CONTROL Y DATOS DINÁMICOS</span>
+        </div>
+      </div>
+
+      <!-- Tab Selector Toggle Links -->
+      <div style="display: flex; gap: 0.5rem; backgroundColor: rgba(30, 41, 59, 0.4); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-color)">
+        <button id="btn-tab-dashboard" class="chart-btn-tab active" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem;">
+          <i data-lucide="layout-dashboard" style="width: 14px; height: 14px;"></i>
+          Dashboard
+        </button>
+        <button id="btn-tab-management" class="chart-btn-tab" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.5rem 1rem;">
+          <i data-lucide="users" style="width: 14px; height: 14px;"></i>
+          Gestión de Datos
+        </button>
+      </div>
+
+      <!-- Controls & Actions -->
+      <div class="controls-section">
+        <div id="date-select-wrapper" style="display: flex; alignItems: center; gap: 0.5rem;">
+          <i data-lucide="calendar" style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+          <select id="dashboard-date-range" class="filter-select">
+            <option value="Last7">Últimos 7 Días</option>
+            <option value="Last30" selected>Últimos 30 Días</option>
+            <option value="YTD">YTD (Año a la fecha)</option>
+          </select>
+        </div>
+
+        <!-- Notification Button & Popdown -->
+        <div style="position: relative;">
+          <button id="btn-notifications-toggle" class="btn-secondary" style="padding: 0.6rem; display: flex; align-items: center;">
+            <i data-lucide="bell" style="width: 18px; height: 18px;"></i>
+            <span id="notifications-badge" class="hidden" style="position: absolute; top: -4px; right: -4px; background: var(--danger); color: white; font-size: 9px; font-weight: bold; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">0</span>
+          </button>
+          
+          <div id="notifications-panel" class="hidden" style="position: absolute; top: 115%; right: 0; width: 320px; backgroundColor: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.25rem; boxShadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); z-index: 110; display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+              <span style="font-size: 0.85rem; font-weight: 600;">Registro del Sistema</span>
+              <i data-lucide="alert-circle" style="width: 16px; height: 16px; color: var(--primary-light);"></i>
+            </div>
+            <div id="notifications-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Document Export Operations -->
+        <div style="display: flex; gap: 0.5rem;">
+          <button id="btn-export-csv" class="btn-secondary">
+            <i data-lucide="download" style="width: 15px; height: 15px;"></i> Exportar CSV
+          </button>
+          <button id="btn-export-pdf" class="btn-primary">
+            <i data-lucide="download" style="width: 15px; height: 15px;"></i> Reporte PDF
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- TAB 1: VIEW DASHBOARD -->
+    <div id="view-dashboard">
+      
+      <!-- Empty State Panel -->
+      <div id="empty-state-panel" class="hidden" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6rem 2rem; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); text-align: center; gap: 1.25rem; margin: 2rem;">
+        <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: var(--primary-light);"></i>
+        <div>
+          <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.5rem;">Tu base de datos está vacía</h3>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.5rem; max-width: 480px;">
+            No hay clientes registrados en el sistema para calcular métricas. 
+            Ve a la pestaña de **Gestión de Datos** para añadir tus primeros registros o cargar los datos demo en un clic.
+          </p>
+        </div>
+        <button id="link-go-to-management" class="btn-primary">
+          Ir a Gestión de Datos
+        </button>
+      </div>
+
+      <!-- Main Populated Metrics Layout -->
+      <div id="dashboard-metrics-content" class="dashboard-content hidden">
+        
+        <!-- KPI Metrics Row -->
+        <section class="kpi-grid">
+          
+          <div class="kpi-card mrr fadeIn">
+            <div class="kpi-header">
+              <span class="kpi-title">MRR (Men. Recurrente)</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="dollar-sign" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="mrr-value" class="kpi-value">$0</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-up" style="width: 14px; height: 14px; margin-right: 2px;"></i>5.1%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+
+          <div class="kpi-card arr fadeIn" style="animation-delay: 0.05s;">
+            <div class="kpi-header">
+              <span class="kpi-title">ARR (Anual Run Rate)</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="activity" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="arr-value" class="kpi-value">$0</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-up" style="width: 14px; height: 14px; margin-right: 2px;"></i>5.1%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+
+          <div class="kpi-card ltv fadeIn" style="animation-delay: 0.1s;">
+            <div class="kpi-header">
+              <span class="kpi-title">LTV (Lifetime Value)</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="award" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="ltv-value" class="kpi-value">$0</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-up" style="width: 14px; height: 14px; margin-right: 2px;"></i>2.8%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+
+          <div class="kpi-card cac fadeIn" style="animation-delay: 0.15s;">
+            <div class="kpi-header">
+              <span class="kpi-title">CAC (Costo Adquisición)</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="target" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="cac-value" class="kpi-value">$0</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-down" style="width: 14px; height: 14px; margin-right: 2px;"></i>-4.2%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+
+          <div class="kpi-card mrr fadeIn" style="animation-delay: 0.2s;">
+            <div class="kpi-header">
+              <span class="kpi-title">Relación LTV : CAC</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="trending-up" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="ltv-cac-ratio-value" class="kpi-value">0.0x</h3>
+            </div>
+            <div class="kpi-footer">
+              <span id="ltv-cac-trend" class="kpi-trend">Evaluando</span>
+            </div>
+          </div>
+
+          <div class="kpi-card churn fadeIn" style="animation-delay: 0.25s;">
+            <div class="kpi-header">
+              <span class="kpi-title">Tasa de Cancelación</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="percent" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="churn-value" class="kpi-value">0%</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-down" style="width: 14px; height: 14px; margin-right: 2px;"></i>-0.3%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+
+          <div class="kpi-card arpu fadeIn" style="animation-delay: 0.3s;">
+            <div class="kpi-header">
+              <span class="kpi-title">ARPU (Ticket Medio)</span>
+              <div class="kpi-icon-wrapper"><i data-lucide="users" style="width: 18px; height: 18px;"></i></div>
+            </div>
+            <div class="kpi-body">
+              <h3 id="arpu-value" class="kpi-value">$0</h3>
+            </div>
+            <div class="kpi-footer">
+              <span class="kpi-trend text-success"><i data-lucide="trending-up" style="width: 14px; height: 14px; margin-right: 2px;"></i>1.3%</span>
+              <span class="kpi-trend-period">vs mes ant.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Dynamic Visual Charts Grid -->
+        <section class="charts-grid">
+          
+          <!-- Area Revenue Chart -->
+          <div class="chart-card span-8 fadeIn" style="animation-delay: 0.3s;">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title">Crecimiento de Ingresos Recurrentes (MRR)</h4>
+              <div class="chart-card-actions">
+                <button id="chart-btn-monthly" class="chart-btn-tab active" onclick="toggleRevenueTimeframe('monthly')">Mensual</button>
+                <button id="chart-btn-daily" class="chart-btn-tab" onclick="toggleRevenueTimeframe('daily')">Diario (Últ. 30 días)</button>
+              </div>
+            </div>
+            <div class="chart-container">
+              <div id="revenue-chart"></div>
+            </div>
+          </div>
+
+          <!-- Subscription Allocation Donut -->
+          <div class="chart-card span-4 fadeIn" style="animation-delay: 0.35s;">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title">Distribución por Plan de Suscripción</h4>
+            </div>
+            <div class="chart-container" style="display: flex; align-items: center; justify-content: center;">
+              <div id="plan-chart"></div>
+            </div>
+          </div>
+
+          <!-- Growth & Churn Bar Chart -->
+          <div class="chart-card span-6 fadeIn" style="animation-delay: 0.4s;">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title">Adquisición vs Cancelación de Usuarios</h4>
+            </div>
+            <div class="chart-container">
+              <div id="customer-chart"></div>
+            </div>
+          </div>
+
+          <!-- Horizontal Conversion Funnel -->
+          <div class="chart-card span-6 fadeIn" style="animation-delay: 0.45s;">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title">Embudo de Conversión de Clientes (Funnel)</h4>
+            </div>
+            <div class="chart-container">
+              <div id="funnel-chart"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SaaS What-If Projection Simulator Sandbox -->
+        <section class="table-card fadeIn" style="animation-delay: 0.5s;">
+          <div class="chart-card-header">
+            <h4 class="chart-card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <i data-lucide="sparkles" style="color: var(--warning); width:18px; height:18px"></i>
+              Simulador Científico de Proyecciones SaaS
+            </h4>
+          </div>
+          
+          <div class="simulator-card">
+            <!-- Slider selectors -->
+            <div class="simulator-controls">
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                Ajusta los motores de crecimiento para simular los próximos 12 meses de rendimiento financiero:
+              </p>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span class="slider-label">MRR Inicial</span>
+                  <span id="val-starting-mrr" class="slider-value">$50,000</span>
+                </div>
+                <input id="slider-starting-mrr" type="range" min="5000" max="250000" step="5000" value="50000" class="range-slider" />
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span class="slider-label">Crecimiento Mensual (Nuevos Registros)</span>
+                  <span id="val-growth-rate" class="slider-value">8%</span>
+                </div>
+                <input id="slider-growth-rate" type="range" min="1" max="35" step="0.5" value="8" class="range-slider" />
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span class="slider-label">ARPU (Ticket Promedio Mensual)</span>
+                  <span id="val-arpu" class="slider-value">$79</span>
+                </div>
+                <input id="slider-arpu" type="range" min="10" max="450" step="5" value="79" class="range-slider" />
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span class="slider-label">Tasa de Cancelación (Churn Mensual)</span>
+                  <span id="val-churn-rate" class="slider-value">2.5%</span>
+                </div>
+                <input id="slider-churn-rate" type="range" min="0.5" max="15" step="0.1" value="2.5" class="range-slider" />
+              </div>
+            </div>
+
+            <!-- Projections stats and line graph -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div class="simulator-projection">
+                <div class="projection-header">
+                  <span class="projection-title">Previsión a 12 Meses</span>
+                  <p class="projection-desc">Basado en un churn neto de <span id="proj-net-churn-rate">5.5</span>% mensual</p>
+                </div>
+                
+                <div class="projection-stats">
+                  <div class="proj-stat-box">
+                    <span class="proj-stat-label">MRR Proyectado (Mes 12)</span>
+                    <div id="proj-mrr-value" class="proj-stat-value">$0</div>
+                  </div>
+                  <div class="proj-stat-box">
+                    <span class="proj-stat-label">ARR Proyectado (Mes 12)</span>
+                    <div id="proj-arr-value" class="proj-stat-value arr">$0</div>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-secondary); border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                  <span>Clientes Proyectados: <b id="proj-customers">0</b></span>
+                  <span>Crecimiento Total: <b id="proj-growth-percent" class="text-success">+0%</b></span>
+                </div>
+              </div>
+
+              <div style="height: 170px;">
+                <div id="projection-chart"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Transaction Ledger Table -->
+        <section class="table-card fadeIn" style="animation-delay: 0.55s;">
+          <div class="chart-card-header">
+            <h4 class="chart-card-title">Registro de Suscriptores y Transacciones</h4>
+          </div>
+
+          <div class="table-header-controls">
+            <div class="search-input-wrapper">
+              <i data-lucide="search" class="search-icon" style="width: 16px; height: 16px;"></i>
+              <input id="dashboard-table-search" type="text" placeholder="Buscar por ID, nombre o email..." class="search-input" />
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <select id="dashboard-table-plan-filter" class="filter-select">
+                <option value="All">Todos los planes</option>
+                <option value="Basic">Plan Básico</option>
+                <option value="Pro">Plan Pro</option>
+                <option value="Enterprise">Plan Enterprise</option>
+              </select>
+
+              <select id="dashboard-table-status-filter" class="filter-select">
+                <option value="All">Todos los estados</option>
+                <option value="Active">Activo</option>
+                <option value="Past Due">Vencido</option>
+                <option value="Churned">Cancelado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID Transacción</th>
+                  <th>Cliente</th>
+                  <th>Plan contratado</th>
+                  <th>Monto</th>
+                  <th>Fecha de pago</th>
+                  <th>Estado de cuenta</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-table-tbody" data-current-page="1">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination details -->
+          <div id="dashboard-table-pagination-wrapper" class="table-pagination">
+            <!-- Rendered dynamically -->
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: VIEW MANAGEMENT -->
+    <div id="view-management" class="hidden">
+      <div class="dashboard-content">
+        
+        <div style="margin-bottom: 0.5rem;">
+          <h2 style="font-family: 'Outfit', sans-serif; font-size: 1.75rem; font-weight: 700;">Gestión de Datos y Parámetros</h2>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;">
+            Configura los precios del sistema, añade o elimina clientes, y simula diferentes volúmenes de datos.
+          </p>
+        </div>
+
+        <!-- Configurations & Add Client splits -->
+        <div class="charts-grid">
+          
+          <!-- Parameters config -->
+          <div class="chart-card span-6">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="settings" style="width: 18px; height: 18px; color: var(--primary-light);"></i>
+                Configurar Precios y CAC
+              </h4>
+            </div>
+            
+            <form id="form-params-config" style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Precio Plan Básico ($)</label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <i data-lucide="dollar-sign" style="width: 14px; height: 14px; position: absolute; left: 10px; color: var(--text-muted);"></i>
+                    <input id="param-basic-price" type="number" class="search-input" style="padding-left: 2rem;" value="30000" />
+                  </div>
+                </div>
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Precio Plan Pro ($)</label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <i data-lucide="dollar-sign" style="width: 14px; height: 14px; position: absolute; left: 10px; color: var(--text-muted);"></i>
+                    <input id="param-pro-price" type="number" class="search-input" style="padding-left: 2rem;" value="60000" />
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Precio Plan Enterprise ($)</label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <i data-lucide="dollar-sign" style="width: 14px; height: 14px; position: absolute; left: 10px; color: var(--text-muted);"></i>
+                    <input id="param-enterprise-price" type="number" class="search-input" style="padding-left: 2rem;" value="150000" />
+                  </div>
+                </div>
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">CAC Global Promedio ($)</label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <i data-lucide="dollar-sign" style="width: 14px; height: 14px; position: absolute; left: 10px; color: var(--text-muted);"></i>
+                    <input id="param-cac" type="number" class="search-input" style="padding-left: 2rem;" value="500000" />
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem;">
+                <span id="param-success-alert" class="hidden" style="font-size: 0.8rem; color: var(--success); font-weight: 600;">
+                  ✓ Parámetros actualizados
+                </span>
+                <button type="submit" class="btn-primary">Guardar Configuración</button>
+              </div>
+            </form>
+            
+            <div style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+              <h5 style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">Operaciones Rápidas de Datos</h5>
+              <div style="display: flex; gap: 1rem;">
+                <button id="btn-generate-demo" class="btn-secondary" style="flex: 1; justify-content: center; gap: 0.5rem; border-color: rgba(99, 102, 241, 0.4);">
+                  <i data-lucide="sparkles" style="color: var(--primary-light); width: 16px; height: 16px;"></i>
+                  Generar Clientes Demo
+                </button>
+                <button id="btn-clear-all" class="btn-secondary" style="flex: 1; justify-content: center; gap: 0.5rem; border-color: rgba(244, 63, 94, 0.4);">
+                  <i data-lucide="trash-2" style="color: var(--danger); width: 16px; height: 16px;"></i>
+                  Borrar Base de Datos
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add client form -->
+          <div class="chart-card span-6">
+            <div class="chart-card-header">
+              <h4 class="chart-card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="plus-circle" style="color: var(--success); width: 18px; height: 18px;"></i>
+                Registrar Nuevo Cliente
+              </h4>
+            </div>
+
+            <form id="form-add-client" style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Nombre Completo</label>
+                  <input id="client-name" type="text" placeholder="Ej. Juan Pérez" class="search-input" />
+                </div>
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Correo Electrónico</label>
+                  <input id="client-email" type="email" placeholder="juan@ejemplo.com" class="search-input" />
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Plan de Suscripción</label>
+                  <select id="client-plan" class="filter-select" style="width: 100%;">
+                    <option value="Basic">Básico</option>
+                    <option value="Pro">Pro</option>
+                    <option value="Enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <div class="slider-group">
+                  <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Estado de Suscripción</label>
+                  <select id="client-status" class="filter-select" style="width: 100%;">
+                    <option value="Active">Activo</option>
+                    <option value="Past Due">Vencido</option>
+                    <option value="Churned">Cancelado (Churned)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="slider-group">
+                <label class="slider-label" style="font-size: 0.8rem; font-weight: 600;">Fecha de Suscripción / Pago</label>
+                <input id="client-date" type="date" class="date-picker-input" style="width: 100%;" />
+              </div>
+
+              <span id="add-client-error-alert" class="hidden" style="font-size: 0.8rem; color: var(--danger); font-weight: 600;">
+                ⚠ Completa los campos.
+              </span>
+
+              <button type="submit" class="btn-primary" style="align-self: flex-end; margin-top: 0.25rem;">
+                <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                Agregar Cliente
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Management clients registry table -->
+        <div class="table-card" style="margin-top: 0.75rem;">
+          <div class="chart-card-header">
+            <h4 class="chart-card-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <i data-lucide="users" style="width: 18px; height: 18px; color: var(--primary-light);"></i>
+              Clientes Registrados (<span id="management-clients-count">0</span>)
+            </h4>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Plan Contratado</th>
+                  <th>Monto Mensual</th>
+                  <th>Fecha de Pago</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="management-clients-tbody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Footer Details -->
+    <footer class="dashboard-footer">
+      <div>
+        <span>© 2026 Zoma DASH. Todos los derechos reservados.</span>
+      </div>
+      <div class="footer-links">
+        <a href="#" class="footer-link">Soporte Técnico</a>
+        <a href="#" class="footer-link">Documentación API</a>
+        <a href="#" class="footer-link">Privacidad</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Main JavaScript App Code -->
+  <script src="app.js"></script>
+</body>
 </html>

@@ -98,7 +98,7 @@ h1, h2, h3, h4, .brand-title {
   box-shadow: 0 4px 14px var(--primary-glow);
 }
 
-.brand-icon svg {
+.brand-icon svg, .brand-icon i {
   color: white;
   width: 22px;
   height: 22px;
@@ -186,6 +186,11 @@ h1, h2, h3, h4, .brand-title {
   border-color: var(--text-muted);
 }
 
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Dashboard Grid System */
 .dashboard-content {
   flex: 1;
@@ -201,7 +206,7 @@ h1, h2, h3, h4, .brand-title {
 /* KPI Cards Layout */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--gap-medium);
 }
 
@@ -251,7 +256,7 @@ h1, h2, h3, h4, .brand-title {
 }
 
 .kpi-title {
-  font-size: 0.875rem;
+  font-size: 0.825rem;
   color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
@@ -275,7 +280,7 @@ h1, h2, h3, h4, .brand-title {
 
 .kpi-value {
   font-family: 'Outfit', sans-serif;
-  font-size: 1.85rem;
+  font-size: 1.7rem;
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 0.75rem;
@@ -747,6 +752,11 @@ h1, h2, h3, h4, .brand-title {
 
 .footer-link:hover {
   color: var(--text-secondary);
+}
+
+/* Hidden Class for Routing */
+.hidden {
+  display: none !important;
 }
 
 /* Utilities */
